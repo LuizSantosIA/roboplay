@@ -8,7 +8,7 @@ import { Particles } from './systems/particles';
 import { Camera } from './world/camera';
 import { World } from './world/landscape';
 import { Entity } from './entities/entity';
-import { Robot, RobotConfig, randomConfig } from './entities/robot';
+import { Robot, RobotConfig, randomConfig, Glow } from './entities/robot';
 import { Box, BoxColor } from './entities/box';
 import { Ball } from './entities/ball';
 import type { Hud } from './ui/hud';
@@ -49,6 +49,7 @@ export class Game {
   time = 0;
   night = 0;
   pointerWorld = { x: -999, y: -999 };
+  glows: Glow[] = [];
   autonomous = false;
   paused = false;
   lockManual = false; // missão "só blocos"

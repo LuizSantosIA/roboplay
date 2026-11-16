@@ -2,15 +2,17 @@ import './style.css';
 import { Game } from './game';
 import { Hud } from './ui/hud';
 import { TouchControls } from './ui/touch';
+import { setupWorldControls } from './ui/worldControls';
 import { GROUND_BOTTOM, GROUND_TOP } from './config';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const game = new Game(canvas);
-new Hud(game);
+const hud = new Hud(game);
+setupWorldControls(game, hud);
 new TouchControls(game);
 
 function populate() {
-  const mid = 520;
+  const mid = 560;
   const r1 = game.spawnRobot(undefined, mid - 120, GROUND_TOP + 140);
   game.spawnRobot(undefined, mid + 60, GROUND_TOP + 90);
   game.spawnRobot(undefined, mid + 200, GROUND_TOP + 190);

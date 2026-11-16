@@ -30,6 +30,14 @@ export function randomConfig(used: string[] = []): RobotConfig {
   };
 }
 
+export interface Glow {
+  x: number;
+  y: number;
+  r: number;
+  a: number;
+  color: string; // use 'A' no lugar do alfa
+}
+
 export type Mood = 'normal' | 'tonto' | 'dormindo' | 'feliz';
 
 export class Robot extends Entity {
@@ -53,8 +61,11 @@ export class Robot extends Entity {
   dance = 0;
   flying = false;
   stuckT = 0;
+  prevX = 0;
+  prevY = 0;
   wanderT = rand(1, 4);
   remote = false; // controlado pela rede
+  glowSink: Glow[] | null = null;
 
   constructor(x: number, y: number, cfg: RobotConfig) {
     super();
@@ -135,8 +146,8 @@ export class Robot extends Entity {
       } else {
         vx = ((wp.x - this.x) / d) * spd;
         vy = ((wp.y - this.y) / d) * spd;
-        const moved = dist(this.x, this.y, this.lastX, this.lastY);
-        if (moved < spd * dt * 0.15) this.stuckT += dt;
+        const moved = dist(this.x, this.y, this.prevX, this.prevY);
+        if (moved < spd * dt * 0.2) this.stuckT += dt;
         else this.stuckT = Math.max(0, this.stuckT - dt);
         if (this.stuckT > 1.4) {
           this.stuckT = 0;
@@ -146,6 +157,8 @@ export class Robot extends Entity {
       }
     }
     this.manualDir = null;
+    this.prevX = this.x;
+    this.prevY = this.y;
     const slip = this.slippery;
     if (vx || vy) {
       this.moving = true;
@@ -153,6 +166,7 @@ export class Robot extends Entity {
       this.heading = Math.atan2(vy, vx);
     } else this.moving = false;
     if (canWalk) {
+      if (slip > 0.5 && (vx || vy) && Math.random() < dt * 0.6 && !this.speech) this.say(pick(['Escorregaaa!', 'Opa, poça!', 'Uiii!']), 1.2);
       if (slip > 0.05) {
         // escorregando: mantém parte do embalo
         const cur = Matter.Body.getVelocity(this.body);
@@ -284,8 +298,9 @@ export class Robot extends Entity {
   }
 
   /** Desenha o robô com origem nos pés (escala 1). Usado também no editor. */
-  drawBody(ctx: CanvasRenderingContext2D, g: { time: number; night?: number }, preview = false) {
+  drawBody(ctx: CanvasRenderingContext2D, g: { time: number; night?: number; glows?: Glow[] }, preview = false) {
     const t = g.time;
+    this.glowSink = preview ? null : g.glows ?? null;
     const c = this.cfg;
     const f = this.facing;
     const wheels = c.loco === 'rodas';
@@ -520,6 +535,10 @@ export class Robot extends Entity {
       ctx.beginPath();
       ctx.arc(x, y, 3.6, 0, Math.PI * 2);
       ctx.fill();
+      if (this.glowSink && night > 0.2) {
+        const m = ctx.getTransform();
+        this.glowSink.push({ x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f, r: on ? 26 : 18, a: night * (on ? 1 : 0.6), color: 'rgba(255,110,90,A)' });
+      }
     }
   }
 
