@@ -3,19 +3,29 @@ import { Game } from './game';
 import { Hud } from './ui/hud';
 import { TouchControls } from './ui/touch';
 import { setupWorldControls } from './ui/worldControls';
+import { setupEditor } from './ui/editor';
+import { loadRoster } from './systems/storage';
 import { GROUND_BOTTOM, GROUND_TOP } from './config';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const game = new Game(canvas);
 const hud = new Hud(game);
 setupWorldControls(game, hud);
+setupEditor(game, hud);
 new TouchControls(game);
 
 function populate() {
   const mid = 560;
-  const r1 = game.spawnRobot(undefined, mid - 120, GROUND_TOP + 140);
-  game.spawnRobot(undefined, mid + 60, GROUND_TOP + 90);
-  game.spawnRobot(undefined, mid + 200, GROUND_TOP + 190);
+  const roster = loadRoster();
+  const spots = [[mid - 120, GROUND_TOP + 140], [mid + 60, GROUND_TOP + 90], [mid + 200, GROUND_TOP + 190], [mid - 250, GROUND_TOP + 60], [mid + 330, GROUND_TOP + 70], [mid - 60, GROUND_TOP + 230]];
+  let r1 = null;
+  const n = roster ? Math.min(roster.length, 8) : 3;
+  for (let i = 0; i < n; i++) {
+    const [x, y] = spots[i % spots.length];
+    const r = game.spawnRobot(roster ? roster[i] : undefined, x + Math.floor(i / spots.length) * 40, y);
+    r1 = r1 ?? r;
+  }
+  if (!roster) game.saveRoster();
   game.spawnBox('madeira', mid - 40, GROUND_TOP + 200);
   game.spawnBox('madeira', mid + 130, GROUND_TOP + 60);
   game.spawnBox('madeira', mid + 300, GROUND_TOP + 120);

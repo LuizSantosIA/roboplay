@@ -66,6 +66,14 @@ export class Robot extends Entity {
   wanderT = rand(1, 4);
   remote = false; // controlado pela rede
   glowSink: Glow[] | null = null;
+  // personalidade
+  mood: Mood = 'normal';
+  moodT = 0;
+  idleT = 0;
+  battery = 100;
+  charging = false;
+  private lowWarnT = 0;
+  private zzzT = 0;
 
   constructor(x: number, y: number, cfg: RobotConfig) {
     super();
@@ -118,7 +126,36 @@ export class Robot extends Entity {
 
   /** Multiplicador de velocidade (bateria, humor...). */
   speedFactor(_g: Game) {
-    return 1;
+    let f = 1;
+    if (this.battery <= 0) f = 0.25;
+    else if (this.battery < 20) f = 0.55;
+    if (this.mood === 'tonto') f *= 0.6;
+    return f;
+  }
+
+  /** Fica tonto (chacoalhado). */
+  makeDizzy(g: Game) {
+    this.mood = 'tonto';
+    this.moodT = 4;
+    this.say('Tô tonto...', 2.4);
+    g.audio.bad();
+  }
+
+  celebrate(g: Game) {
+    if (this.mood === 'dormindo') this.wake();
+    this.mood = 'feliz';
+    this.moodT = 2.6;
+    if (!this.airborne) this.vz = 330;
+    g.particles.confetti(this.x, this.y, this.z + 100, 26);
+    this.say(pick(['Eba!', 'Consegui!', 'Uhuuu!', 'Viva!']), 2);
+  }
+
+  wake() {
+    this.idleT = 0;
+    if (this.mood === 'dormindo') {
+      this.mood = 'normal';
+      this.say(pick(['Hã? Acordei!', 'Bom dia!', 'Só um cochilo...']), 1.6);
+    }
   }
 
   /** Chamado antes do passo de física: define a velocidade desejada. */
@@ -156,6 +193,15 @@ export class Robot extends Entity {
         }
       }
     }
+    if (this.mood === 'tonto' && (vx || vy)) {
+      const a = Math.sin(g.time * 7 + this.antennaPhase) * 0.9;
+      const c = Math.cos(a);
+      const sn = Math.sin(a);
+      const nx = vx * c - vy * sn;
+      vy = vx * sn + vy * c;
+      vx = nx;
+    }
+    if (this.mood === 'dormindo' && (vx || vy)) this.wake();
     this.manualDir = null;
     this.prevX = this.x;
     this.prevY = this.y;
@@ -247,6 +293,40 @@ export class Robot extends Entity {
       if (this.speech.t <= 0) this.speech = null;
     }
     if (this.dance > 0) this.dance -= dt;
+    // bateria
+    if (!this.remote) {
+      let drain = 0.012;
+      if (this.moving) drain += 0.75;
+      if (this.carrying) drain += this.moving ? 0.75 : 0.15;
+      if (this.dance > 0) drain += 0.5;
+      if (!this.charging) this.battery = Math.max(0, this.battery - drain * dt);
+      if (this.battery < 20 && !this.charging) {
+        this.lowWarnT -= dt;
+        if (this.lowWarnT <= 0) {
+          this.lowWarnT = 14;
+          this.say(this.battery <= 0 ? 'Sem bateria... me leva pra recarga!' : 'Bateria baixa! Preciso recarregar.', 2.6);
+        }
+      }
+    }
+    // humor
+    if (this.moodT > 0) {
+      this.moodT -= dt;
+      if (this.moodT <= 0 && (this.mood === 'tonto' || this.mood === 'feliz')) this.mood = 'normal';
+    }
+    const active = this.moving || this.dragged || this.dance > 0 || this.carriedBy || this.airborne || g.selected === this && g.input.moveDir();
+    if (active) this.idleT = 0;
+    else this.idleT += dt;
+    if (this.mood === 'normal' && this.idleT > 25 && !this.remote) {
+      this.mood = 'dormindo';
+      this.say('Zzz...', 1.5);
+    }
+    if (this.mood === 'dormindo') {
+      this.zzzT -= dt;
+      if (this.zzzT <= 0) {
+        this.zzzT = 1.1;
+        g.particles.spawn({ type: 'texto', x: this.x + 14 * this.scale, y: this.y, z: this.z + 100 * this.scale, vx: 12, vz: 26, life: 2, color: '#ffffff', size: 13, text: 'Z', gravity: 0 });
+      }
+    }
     // voando
     if (this.z > 40 && !this.flying && !this.dragged) {
       this.flying = true;
@@ -272,6 +352,8 @@ export class Robot extends Entity {
   // ---------- Desenho ----------
 
   eyesMood(): Mood {
+    if (this.mood !== 'normal') return this.mood;
+    if (this.battery <= 0) return 'dormindo';
     return 'normal';
   }
 
@@ -415,14 +497,18 @@ export class Robot extends Entity {
 
   /** Painel do peito (pode mostrar bateria). */
   drawPanel(ctx: CanvasRenderingContext2D, x: number, y: number, t: number) {
-    const on = Math.sin(t * 3 + this.antennaPhase) > 0;
-    ctx.fillStyle = on ? '#7dffb0' : '#2f7a52';
-    ctx.beginPath();
-    ctx.arc(x + 5, y + 6.5, 2.4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#ffd36b';
-    ctx.fillRect(x + 10, y + 4, 7, 2);
-    ctx.fillRect(x + 10, y + 8, 5, 2);
+    const b = this.battery / 100;
+    const col = b < 0.2 ? '#ff5a4f' : b < 0.5 ? '#ffc94a' : '#7dffb0';
+    if (b < 0.2 && Math.sin(t * 8) < 0 && !this.charging) return;
+    ctx.fillStyle = col;
+    const bars = Math.max(1, Math.ceil(b * 4));
+    for (let i = 0; i < bars; i++) ctx.fillRect(x + 3 + i * 4, y + 3.5, 3, 6);
+    if (this.charging) {
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 8px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('⚡', x + 10, y + 11);
+    }
   }
 
   private drawHead(ctx: CanvasRenderingContext2D, y: number, t: number, mood: Mood, light: string, dark: string, night: number) {

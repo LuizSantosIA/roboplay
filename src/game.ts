@@ -12,6 +12,7 @@ import { Robot, RobotConfig, randomConfig, Glow } from './entities/robot';
 import { Box, BoxColor } from './entities/box';
 import { Ball } from './entities/ball';
 import type { Hud } from './ui/hud';
+import { saveRoster } from './systems/storage';
 
 /** Elementos fixos do cenário que participam da ordenação por profundidade. */
 export interface Prop {
@@ -69,6 +70,9 @@ export class Game {
     this.resize();
     window.addEventListener('resize', () => this.resize());
     this.physics.onCollision((a, b) => this.handleCollision(a, b));
+    this.on('shaken', (e) => {
+      if (e instanceof Robot) e.makeDizzy(this);
+    });
   }
 
   // ---------- eventos ----------
@@ -191,6 +195,7 @@ export class Game {
     if (r && r.remote) return;
     this.selected = r;
     if (r) {
+      r.wake();
       this.audio.select();
       r.say(pick(['Oi!', 'Pronto!', 'Às ordens!', 'Bip!']), 1.4);
       this.camera.free = false;
@@ -297,6 +302,7 @@ export class Game {
     }
     const r = this.selected;
     if (!r || this.lockManual) return;
+    r.wake();
     if (hit && hit.grabbable && !hit.carriedBy) {
       // ir até o objeto e pegá-lo (caixa/maçã) ou chutar (bola)
       r.goTo(hit.x - r.facing * 0, hit.y + 4, this, (ok) => {
@@ -347,7 +353,17 @@ export class Game {
     return false;
   }
 
-  wake(_r: Robot) {}
+  wake(r: Robot) {
+    r.wake();
+  }
+
+  celebrate(r: Robot | null = this.selected) {
+    r?.celebrate(this);
+  }
+
+  saveRoster() {
+    saveRoster(this.robots.filter((r) => !r.remote).map((r) => r.cfg));
+  }
 
   danceAll() {
     for (const r of this.robots) {
@@ -508,10 +524,18 @@ export class Game {
   }
 
   private wander(r: Robot, dt: number) {
-    if (r.dragged || r.dance > 0 || r.airborne) return;
+    if (r.dragged || r.dance > 0 || r.airborne || r.mood === 'dormindo') return;
+    if (r.charging && r.battery < 98) return;
     r.wanderT -= dt;
     if (r.wanderT > 0 || r.target) return;
     r.wanderT = rand(2, 6);
+    if (r.battery < 20) {
+      const st = this.world.station;
+      r.say('Vou recarregar!', 1.6);
+      r.goTo(st.x + rand(-6, 6), st.y + rand(-3, 3), this);
+      r.wanderT = 3;
+      return;
+    }
     if (r.carrying && Math.random() < 0.5) {
       r.drop(this);
       return;

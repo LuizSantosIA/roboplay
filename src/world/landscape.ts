@@ -6,6 +6,7 @@ import { Weather } from './weather';
 import { Lake } from './lake';
 import { Tree, TreeType } from './trees';
 import { Bird } from './birds';
+import { ChargingStation } from './station';
 import { Obstacle, insideObstacle, planPath } from './pathing';
 
 const F_CLOUD = 0.05;
@@ -54,6 +55,7 @@ export class World {
   dayNight = new DayNight();
   weather = new Weather();
   lake: Lake;
+  station: ChargingStation;
   trees: Tree[] = [];
   birds: Bird[] = [];
   obstacles: Obstacle[] = [];
@@ -102,6 +104,9 @@ export class World {
       [3420, 'redonda', GROUND_TOP + 10], [3560, 'pinheiro'],
     ];
     for (const [x, type, y, s] of placed) this.addTree(new Tree(x, y ?? GROUND_TOP + 4, type, s ?? 1));
+    // estação de recarga
+    this.station = new ChargingStation(190, 610);
+    g.addProp(this.station);
     // pássaros
     for (let i = 0; i < 7; i++) {
       const t = this.trees[(i * 3 + 1) % this.trees.length];

@@ -52,7 +52,10 @@ export class Hud {
     this.toastEl.className = 'toast';
     this.root.appendChild(this.toastEl);
 
-    this.addButton('criar', { id: 'robo', icon: '🤖', label: 'Robô', title: 'Adicionar robô', onClick: () => g.select(g.spawnRobot()) });
+    this.addButton('criar', { id: 'robo', icon: '🤖', label: 'Robô', title: 'Adicionar robô', onClick: () => {
+      g.select(g.spawnRobot());
+      g.saveRoster();
+    } });
     this.addButton('criar', { id: 'caixa', icon: '📦', label: 'Caixa', title: 'Adicionar caixa', onClick: () => g.spawnBox() });
     this.addButton('criar', { id: 'bola', icon: '⚽', label: 'Bola', title: 'Adicionar bola', onClick: () => g.spawnBall() });
     this.addButton('acoes', {
@@ -123,7 +126,19 @@ export class Hud {
   }
 
   /** Conteúdo extra do status (bateria etc.). */
-  statusExtra: (() => string)[] = [];
+  statusExtra: (() => string)[] = [
+    () => {
+      const r = this.g.selected!;
+      const b = Math.round(r.battery);
+      const col = b < 20 ? '#e0483e' : b < 50 ? '#e0a020' : '#2fb46b';
+      return `<span class="battery" style="color:${col}" title="Bateria"><i><b style="width:${Math.max(2, b * 0.28)}px;background:${col}"></b></i>${b}%${r.charging ? ' ⚡' : ''}</span>`;
+    },
+    () => {
+      const m = this.g.selected!.mood;
+      const t = m === 'tonto' ? '😵 tonto' : m === 'dormindo' ? '😴 dormindo' : m === 'feliz' ? '🥳 feliz' : '';
+      return t ? `<span class="mood-tag">${t}</span>` : '';
+    },
+  ];
 
   updateStatus() {
     const r = this.g.selected;
