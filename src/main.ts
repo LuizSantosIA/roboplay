@@ -6,8 +6,16 @@ import { setupWorldControls } from './ui/worldControls';
 import { setupEditor } from './ui/editor';
 import { BlocksPanel } from './ui/blocksPanel';
 import { MissionsUi } from './ui/missions';
-import { loadRoster } from './systems/storage';
+import { setupJuice } from './systems/juice';
+import { dogsIntroduced, loadRoster, markDogsIntroduced } from './systems/storage';
+import type { RobotConfig } from './entities/robot';
 import { GROUND_BOTTOM, GROUND_TOP } from './config';
+
+/** Os dois cachorros robôs que vêm de fábrica. */
+const DOGS: RobotConfig[] = [
+  { species: 'cachorro', name: 'Faro', color: '#f2b632', head: 'quadrada', antenna: 'bola', loco: 'pernas' },
+  { species: 'cachorro', name: 'Biscoito', color: '#8a8f99', head: 'redonda', antenna: 'mola', loco: 'pernas' },
+];
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const game = new Game(canvas);
@@ -17,19 +25,29 @@ setupEditor(game, hud);
 const blocks = new BlocksPanel(game, hud);
 const missions = new MissionsUi(game, hud, blocks);
 new TouchControls(game);
+setupJuice(game);
 
 function populate() {
   const mid = 560;
-  const roster = loadRoster();
-  const spots = [[mid - 120, GROUND_TOP + 140], [mid + 60, GROUND_TOP + 90], [mid + 200, GROUND_TOP + 190], [mid - 250, GROUND_TOP + 60], [mid + 330, GROUND_TOP + 70], [mid - 60, GROUND_TOP + 230]];
+  let roster = loadRoster();
+  // os dois cachorros entram uma vez, também para quem já tinha robôs salvos
+  let changed = !roster;
+  if (!dogsIntroduced()) {
+    markDogsIntroduced();
+    if (roster && !roster.some((c) => c.species === 'cachorro')) {
+      roster = [...roster, ...DOGS.filter((d) => !roster!.some((c) => c.name === d.name)).map((d) => ({ ...d }))];
+      changed = true;
+    }
+  }
+  const spots = [[mid - 120, GROUND_TOP + 140], [mid + 60, GROUND_TOP + 90], [mid + 200, GROUND_TOP + 190], [mid - 250, GROUND_TOP + 60], [mid + 330, GROUND_TOP + 70], [mid - 60, GROUND_TOP + 230], [mid + 120, GROUND_TOP + 250], [mid - 190, GROUND_TOP + 200]];
   let r1 = null;
-  const n = roster ? Math.min(roster.length, 8) : 3;
-  for (let i = 0; i < n; i++) {
+  const list: (RobotConfig | undefined)[] = roster ? roster.slice(0, 10) : [undefined, undefined, undefined, ...DOGS.map((d) => ({ ...d }))];
+  for (let i = 0; i < list.length; i++) {
     const [x, y] = spots[i % spots.length];
-    const r = game.spawnRobot(roster ? roster[i] : undefined, x + Math.floor(i / spots.length) * 40, y);
+    const r = game.spawnRobot(list[i], x + Math.floor(i / spots.length) * 40, y);
     r1 = r1 ?? r;
   }
-  if (!roster) game.saveRoster();
+  if (changed) game.saveRoster();
   game.spawnBox('madeira', mid - 40, GROUND_TOP + 200);
   game.spawnBox('madeira', mid + 130, GROUND_TOP + 60);
   game.spawnBox('madeira', mid + 300, GROUND_TOP + 120);

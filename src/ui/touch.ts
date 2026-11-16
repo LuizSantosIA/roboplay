@@ -10,6 +10,7 @@ export class TouchControls {
       <div class="joy" aria-label="Joystick"><div class="joy-knob"></div></div>
       <div class="touch-btns">
         <button class="tact water" aria-label="Regar">💧</button>
+        <button class="tact kick" aria-label="Chutar ou arremessar">⚽</button>
         <button class="tact grab" aria-label="Pegar ou soltar">Pegar</button>
       </div>`;
     root.appendChild(wrap);
@@ -64,6 +65,26 @@ export class TouchControls {
       if (!g.selected) g.cycleSelection();
       g.action();
     });
+    wrap.querySelector('.kick')!.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      g.audio.unlock();
+      if (!g.selected) g.cycleSelection();
+      g.shoot();
+    });
+    // rótulos conforme o contexto
+    const grab = wrap.querySelector('.grab') as HTMLElement;
+    const kick = wrap.querySelector('.kick') as HTMLElement;
+    let lastGrab = '';
+    let lastKick = '';
+    setInterval(() => {
+      const r = g.selected;
+      const f = r ? g.focusFor(r) : null;
+      const gl = r?.carrying ? 'Soltar' : f?.act === 'chutar' ? 'Chutar' : 'Pegar';
+      const kl = r?.carrying ? '🤾' : '⚽';
+      if (gl !== lastGrab) grab.textContent = lastGrab = gl;
+      if (kl !== lastKick) kick.textContent = lastKick = kl;
+      grab.classList.toggle('ready', !!f || !!r?.carrying);
+    }, 150);
     wrap.querySelector('.water')!.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       g.water();

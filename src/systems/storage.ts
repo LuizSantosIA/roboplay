@@ -2,6 +2,7 @@ import type { RobotConfig } from '../entities/robot';
 
 const KEY_ROSTER = 'roboplay.robos';
 const KEY_PROGRESS = 'roboplay.missoes';
+const KEY_DOGS = 'roboplay.caes';
 
 function read<T>(key: string, fallback: T): T {
   try {
@@ -25,6 +26,14 @@ export function loadRoster(): RobotConfig[] | null {
 }
 export function saveRoster(list: RobotConfig[]) {
   write(KEY_ROSTER, list);
+}
+
+/** Os cachorros já foram adicionados uma vez a este navegador? */
+export function dogsIntroduced(): boolean {
+  return read<boolean>(KEY_DOGS, false);
+}
+export function markDogsIntroduced() {
+  write(KEY_DOGS, true);
 }
 
 export interface MissionProgress {

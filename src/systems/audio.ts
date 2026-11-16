@@ -123,6 +123,11 @@ export class Audio {
     this.tone(2200, 0.06, 'sine', 0.05, 3200);
     this.tone(2600, 0.07, 'sine', 0.05, 2000, 0.08);
   }
+  /** Latido robótico: dois "au" curtos. */
+  bark() {
+    this.tone(520, 0.09, 'sawtooth', 0.07, 260);
+    this.tone(560, 0.1, 'sawtooth', 0.07, 280, 0.14);
+  }
   beep(f = 700) {
     this.tone(f, 0.07, 'square', 0.05);
   }

@@ -116,7 +116,7 @@ export const MISSIONS: MissionDef[] = [
   {
     id: 'gols', icon: '⚽', title: 'Artilheiro', time: 60, target: 3,
     desc: 'Faça 3 gols em 60 segundos.',
-    hint: 'Ande até a bola na direção do gol para chutar. A bola volta ao meio depois de cada gol.',
+    hint: 'Encoste na bola para conduzir. Perto dela, vire para o gol e aperte F (ou Espaço) para um chute forte.',
     setup(g, c, r) {
       const gl = g.scenery.goal;
       placeRobot(g, r, gl.x - 360, gl.y);
@@ -128,7 +128,7 @@ export const MISSIONS: MissionDef[] = [
   {
     id: 'alvos', icon: '🎯', title: 'Tiro ao alvo', time: 45, target: 3,
     desc: 'Derrube os 3 alvos em 45 segundos.',
-    hint: 'Arraste uma caixa ou a bola e solte em movimento na direção de um alvo. Chutar a bola também vale!',
+    hint: 'Pegue uma caixa, vire para o alvo e aperte F para arremessar. Chutar a bola ou arrastar e soltar também vale!',
     setup(g, c, r) {
       const t = g.scenery.targets;
       placeRobot(g, r, t[1].x - 40, GROUND_BOTTOM - 70);
@@ -260,6 +260,7 @@ export class MissionManager {
     this.count = 0;
     def.setup(g, this.ctx, r);
     g.lockManual = !!def.onlyBlocks;
+    g.drainMul = 0; // bateria não atrapalha desafios cronometrados
     // eventos que alimentam conjuntos
     this.unsub.push(g.on('target', (t: Target) => this.ctx.set.add(t)));
     this.unsub.push(g.on('watered', (p: unknown) => this.ctx.set.add(p)));
@@ -277,6 +278,7 @@ export class MissionManager {
       g.missionZone = null;
     }
     g.lockManual = false;
+    g.drainMul = 1;
   }
 
   /** Sai do modo missão e volta ao sandbox. */
@@ -320,6 +322,7 @@ export class MissionManager {
       g.selected?.say('Ah, não deu tempo...', 2);
     }
     g.lockManual = false;
+    g.drainMul = 1;
     g.world.dayNight.speed = this.prevSpeed;
     const res: MissionResult = { def, ok, stars, time: this.elapsed, record };
     setTimeout(() => this.onEnd?.(res), ok ? 1200 : 600);

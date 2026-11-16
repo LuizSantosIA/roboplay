@@ -15,20 +15,21 @@ const HELP_HTML = `
   <div><b>Clique</b> num robô</div><div>Seleciona (anel tracejado)</div>
   <div><b>Clique</b> no gramado</div><div>O robô selecionado anda até lá</div>
   <div><b>Setas / WASD</b></div><div>Move o robô selecionado</div>
-  <div><b>Espaço</b></div><div>Pega ou solta a caixa (ou maçã) mais próxima</div>
+  <div><b>Espaço</b></div><div>Pega ou solta o objeto marcado com a setinha. Longe? O robô vai buscar</div>
+  <div><b>F</b></div><div>Chuta a bola para onde o robô olha, ou arremessa o que está carregando</div>
   <div><b>R</b></div><div>Rega a planta mais próxima</div>
   <div><b>Tab</b></div><div>Troca de robô</div>
   <div><b>Arrastar</b></div><div>Leva robôs, caixas e bolas. Solte em movimento para arremessar!</div>
   <div><b>Arrastar o fundo</b></div><div>Move a câmera pelo mundo</div>
   <div><b>Chacoalhar</b></div><div>Deixa o robô tonto 😵</div>
-  <div><b>Celular</b></div><div>Joystick à esquerda e botão Pegar à direita</div>
+  <div><b>Celular</b></div><div>Joystick à esquerda; Pegar, ⚽ Chutar/arremessar e 💧 à direita</div>
 </div>
 <h3>No cenário</h3>
 <div class="help-grid">
   <div><b>Macieira</b></div><div>Clique para derrubar uma maçã</div>
   <div><b>Botões vermelhos</b></div><div>Pise (ou clique) para abrir a porta da fábrica</div>
   <div><b>Mini-fábrica</b></div><div>Clique para ligar/desligar. Leve cada caixa colorida à área da mesma cor</div>
-  <div><b>Gol, cesta e alvos</b></div><div>Chute a bola no gol, arremesse caixas na cesta e nos alvos</div>
+  <div><b>Gol, cesta e alvos</b></div><div>Encoste na bola para conduzir e aperte F para chutar forte. Arremesse caixas (F) na cesta e nos alvos</div>
   <div><b>Rampas</b></div><div>Passe correndo para dar um salto</div>
   <div><b>Plantas</b></div><div>Regue com R (ou 💧) e veja crescer. A chuva também rega</div>
 </div>

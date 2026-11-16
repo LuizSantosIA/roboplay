@@ -439,6 +439,22 @@ body.is-touch .touch {
   background: #3a9be0;
   box-shadow: 0 4px 0 #2a6fa3, var(--shadow);
 }
+.tact.kick {
+  width: 62px;
+  height: 62px;
+  font-size: 26px;
+  background: #43b06a;
+  box-shadow: 0 4px 0 #2e7d4b, var(--shadow);
+}
+.tact.grab.ready {
+  animation: tact-pulse 1.1s ease-in-out infinite;
+}
+@keyframes tact-pulse {
+  50% { filter: brightness(1.15); transform: scale(1.05); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tact.grab.ready { animation: none; }
+}
 .tact:active {
   transform: translateY(3px);
 }
@@ -1031,4 +1047,15 @@ body.is-touch .desk-only {
     width: 74px;
     height: 74px;
   }
+}
+
+/* clarão rápido em momentos grandes (gol) — systems/juice.ts */
+.juice-flash {
+  position: fixed;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 5;
+  transition: opacity 0.25s ease-out;
 }

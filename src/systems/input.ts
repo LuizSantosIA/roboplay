@@ -42,10 +42,11 @@ export class Input {
     if (this.typing(e)) return;
     const k = e.key.toLowerCase();
     if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
-    if (e.repeat && k === ' ') return;
+    if (e.repeat && (k === ' ' || k === 'f')) return;
     this.keys.add(k);
     this.g.audio.unlock();
     if (k === ' ') this.g.action();
+    else if (k === 'f') this.g.shoot();
     else if (k === 'r') this.g.water();
     else if (k === 'tab') {
       e.preventDefault();

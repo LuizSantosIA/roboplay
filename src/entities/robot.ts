@@ -7,6 +7,7 @@ import type { Game } from '../game';
 export type HeadShape = 'quadrada' | 'redonda' | 'tv' | 'domo';
 export type AntennaType = 'bola' | 'dupla' | 'raio' | 'mola';
 export type Locomotion = 'pernas' | 'rodas';
+export type Species = 'robo' | 'cachorro';
 
 export interface RobotConfig {
   name: string;
@@ -14,15 +15,21 @@ export interface RobotConfig {
   head: HeadShape;
   antenna: AntennaType;
   loco: Locomotion;
+  /** Ausente = robô (configurações antigas). */
+  species?: Species;
 }
 
 export const ROBOT_COLORS = ['#4f9cf0', '#f06a4f', '#43c27a', '#f2b632', '#a46cf0', '#f05fa6', '#3fc7c7', '#8a8f99'];
 const NAMES = ['Bip', 'Zeca', 'Lumi', 'Tico', 'Nina', 'Bolota', 'Faísca', 'Pixel', 'Rex', 'Juju', 'Parafuso', 'Mel'];
 
-export function randomConfig(used: string[] = []): RobotConfig {
-  const free = NAMES.filter((n) => !used.includes(n));
+const DOG_NAMES = ['Faro', 'Biscoito', 'Pipoca', 'Thor', 'Paçoca', 'Bidu', 'Luna', 'Fubá'];
+
+export function randomConfig(used: string[] = [], species: Species = 'robo'): RobotConfig {
+  const pool = species === 'cachorro' ? DOG_NAMES : NAMES;
+  const free = pool.filter((n) => !used.includes(n));
   return {
-    name: free.length ? pick(free) : `Robô ${used.length + 1}`,
+    species,
+    name: free.length ? pick(free) : `${species === 'cachorro' ? 'Cão' : 'Robô'} ${used.length + 1}`,
     color: pick(ROBOT_COLORS),
     head: pick(['quadrada', 'redonda', 'tv', 'domo'] as const),
     antenna: pick(['bola', 'dupla', 'raio', 'mola'] as const),
@@ -73,8 +80,10 @@ export class Robot extends Entity {
   battery = 100;
   wateringT = 0;
   charging = false;
+  kickT = 0;
   private lowWarnT = 0;
   private zzzT = 0;
+  private barkT = rand(6, 14);
 
   constructor(x: number, y: number, cfg: RobotConfig) {
     super();
@@ -100,7 +109,22 @@ export class Robot extends Entity {
     return this.cfg.name;
   }
 
+  get isDog() {
+    return this.cfg.species === 'cachorro';
+  }
+
+  /** Altura (em px, escala 1) onde fica o que ele carrega. */
+  get carryZ() {
+    return this.isDog ? 50 : 92;
+  }
+
+  /** Altura do topo da cabeça (escala 1), para balão e clique. */
+  get topZ() {
+    return this.isDog ? 74 : 104;
+  }
+
   say(text: string, dur = 2.2) {
+    if (this.isDog && !/^(Au|Woof|Zzz|Z$)/.test(text) && Math.random() < 0.4) text = pick(['Au! ', 'Au au! ', 'Woof! ']) + text;
     this.speech = { text, t: dur };
   }
 
@@ -148,7 +172,8 @@ export class Robot extends Entity {
     this.moodT = 2.6;
     if (!this.airborne) this.vz = 330;
     g.particles.confetti(this.x, this.y, this.z + 100, 26);
-    this.say(pick(['Eba!', 'Consegui!', 'Uhuuu!', 'Viva!']), 2);
+    this.say(pick(this.isDog ? ['Au au au!', 'Auuuu!', 'Woof! Consegui!', 'Eba! Au!'] : ['Eba!', 'Consegui!', 'Uhuuu!', 'Viva!']), 2);
+    if (this.isDog) g.audio.bark();
   }
 
   wake() {
@@ -259,12 +284,32 @@ export class Robot extends Entity {
     return e;
   }
 
+  /** Arremessa o que carrega na direção em que olha. */
+  throwAhead(g: Game) {
+    const e = this.carrying;
+    if (!e) return;
+    const hx = Math.cos(this.heading);
+    const hy = Math.sin(this.heading);
+    this.carrying = null;
+    e.carriedBy = null;
+    e.setPos(clamp(this.x + hx * 26, 20, WORLD_W - 20), clamp(this.y + hy * 14, GROUND_TOP + 8, GROUND_BOTTOM - 8));
+    e.z = this.z + 80;
+    e.vz = 300;
+    const sp = 420;
+    if (e.body) Matter.Body.setVelocity(e.body, { x: (hx * sp) / 60, y: (hy * sp * 0.6) / 60 });
+    this.kickT = 0.3;
+    this.say(pick(['Lá vai!', 'Pega!', 'Arremesso!']), 1.2);
+    g.audio.drop();
+    g.emit('drop', { robot: this, entity: e });
+  }
+
   update(dt: number, g: Game) {
+    this.height = this.isDog ? 64 : 100;
     // posição do objeto carregado
     if (this.carrying) {
       const c = this.carrying;
       c.setPos(this.x, this.y + 0.1);
-      c.z = this.z + 92 * this.scale;
+      c.z = this.z + this.carryZ * this.scale;
       if (c.body) Matter.Body.setVelocity(c.body, { x: 0, y: 0 });
     }
     if (this.moving || (this.body && Math.hypot(this.body.velocity.x, this.body.velocity.y) > 0.6 && !this.airborne)) {
@@ -282,7 +327,7 @@ export class Robot extends Entity {
     // olhos seguem o cursor
     const p = g.pointerWorld;
     const hx = this.x;
-    const hy = this.y - this.z - 75 * this.scale;
+    const hy = this.y - this.z - (this.isDog ? 52 : 75) * this.scale;
     const dx = p.x - hx;
     const dy = p.y - hy;
     const d = Math.hypot(dx, dy) || 1;
@@ -295,13 +340,14 @@ export class Robot extends Entity {
     }
     if (this.dance > 0) this.dance -= dt;
     if (this.wateringT > 0) this.wateringT -= dt;
+    if (this.kickT > 0) this.kickT -= dt;
     // bateria
     if (!this.remote) {
       let drain = 0.012;
-      if (this.moving) drain += 0.75;
-      if (this.carrying) drain += this.moving ? 0.75 : 0.15;
-      if (this.dance > 0) drain += 0.5;
-      if (!this.charging) this.battery = Math.max(0, this.battery - drain * dt);
+      if (this.moving) drain += 0.45;
+      if (this.carrying) drain += this.moving ? 0.3 : 0.08;
+      if (this.dance > 0) drain += 0.3;
+      if (!this.charging) this.battery = Math.max(0, this.battery - drain * g.drainMul * dt);
       if (this.battery < 20 && !this.charging) {
         this.lowWarnT -= dt;
         if (this.lowWarnT <= 0) {
@@ -329,6 +375,17 @@ export class Robot extends Entity {
         g.particles.spawn({ type: 'texto', x: this.x + 14 * this.scale, y: this.y, z: this.z + 100 * this.scale, vx: 12, vz: 26, life: 2, color: '#ffffff', size: 13, text: 'Z', gravity: 0 });
       }
     }
+    // latido de vez em quando
+    if (this.isDog && !this.remote && this.mood === 'normal' && this.battery > 0) {
+      this.barkT -= dt;
+      if (this.barkT <= 0) {
+        this.barkT = rand(12, 26);
+        if (!this.speech) {
+          this.say(pick(['Au au!', 'Au!', 'Woof!', 'Auuu!']), 1.3);
+          g.audio.bark();
+        }
+      }
+    }
     // voando
     if (this.z > 40 && !this.flying && !this.dragged) {
       this.flying = true;
@@ -346,9 +403,9 @@ export class Robot extends Entity {
 
   hitTest(wx: number, wy: number) {
     const s = this.scale;
-    const top = this.y - this.z - 104 * s;
+    const top = this.y - this.z - this.topZ * s;
     const bottom = this.y - this.z + 6 * s;
-    return Math.abs(wx - this.x) < 24 * s && wy >= top && wy <= bottom;
+    return Math.abs(wx - this.x) < (this.isDog ? 36 : 24) * s && wy >= top && wy <= bottom;
   }
 
   // ---------- Desenho ----------
@@ -362,7 +419,7 @@ export class Robot extends Entity {
   draw(ctx: CanvasRenderingContext2D, g: Game) {
     const s = this.scale;
     const t = g.time;
-    if (!this.carriedBy) this.drawShadow(ctx, 23, 7);
+    if (!this.carriedBy) this.drawShadow(ctx, this.isDog ? 34 : 23, this.isDog ? 8 : 7);
     if (g.selected === this) {
       ctx.save();
       ctx.strokeStyle = '#ffffff';
@@ -370,7 +427,7 @@ export class Robot extends Entity {
       ctx.setLineDash([6, 5]);
       ctx.lineDashOffset = -t * 18;
       ctx.beginPath();
-      ctx.ellipse(this.x, this.y, 31 * s, 11 * s, 0, 0, Math.PI * 2);
+      ctx.ellipse(this.x, this.y, (this.isDog ? 42 : 31) * s, 11 * s, 0, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
@@ -385,6 +442,7 @@ export class Robot extends Entity {
   drawBody(ctx: CanvasRenderingContext2D, g: { time: number; night?: number; glows?: Glow[] }, preview = false) {
     const t = g.time;
     this.glowSink = preview ? null : g.glows ?? null;
+    if (this.isDog) return this.drawDog(ctx, g, preview);
     const c = this.cfg;
     const f = this.facing;
     const wheels = c.loco === 'rodas';
@@ -444,6 +502,7 @@ export class Robot extends Entity {
     // --- braços ---
     const armAngle = (side: number): number => {
       if (this.carrying) return Math.PI - 0.32;
+      if (this.kickT > 0 && side === f) return Math.PI / 2 + 0.4;
       if (this.wateringT > 0 && side === f) return Math.PI / 2 - 0.15;
       if (dancing) return Math.PI / 2 + Math.sin(t * 9 + (side > 0 ? 0 : Math.PI)) * 1.1;
       if (mood === 'feliz') return Math.PI - 0.5 + Math.sin(t * 14) * 0.25;
@@ -657,7 +716,7 @@ export class Robot extends Entity {
     }
   }
 
-  private drawFace(ctx: CanvasRenderingContext2D, cy: number, t: number, mood: Mood) {
+  private drawFace(ctx: CanvasRenderingContext2D, cy: number, t: number, mood: Mood, noMouth = false) {
     const tv = this.cfg.head === 'tv';
     const ex = 7.5;
     const lx = this.look.x;
@@ -717,7 +776,7 @@ export class Robot extends Entity {
       }
     }
     // boca
-    if (!tv) {
+    if (!tv && !noMouth) {
       ctx.strokeStyle = '#2a2f36';
       ctx.lineWidth = 1.8;
       ctx.beginPath();
@@ -733,6 +792,247 @@ export class Robot extends Entity {
       }
       ctx.stroke();
     }
+  }
+
+  /** Cachorro robô visto de lado, origem nos pés, desenhado virado para a direita e espelhado. */
+  private drawDog(ctx: CanvasRenderingContext2D, g: { time: number; night?: number }, preview: boolean) {
+    const t = g.time;
+    const c = this.cfg;
+    const f = this.facing;
+    const wheels = c.loco === 'rodas';
+    const mood = preview ? 'normal' : this.eyesMood();
+    const dancing = this.dance > 0;
+    const happy = mood === 'feliz' || dancing;
+    const dark = shade(c.color, -0.3);
+    const light = shade(c.color, 0.25);
+    const bob = this.moving ? Math.abs(Math.cos(this.walkPhase)) * 1.8 : Math.sin(t * 2 + this.antennaPhase) * 0.5;
+    const bodyY = wheels ? -34 : -40; // topo do tronco
+    const bodyH = 19;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.scale(f, 1);
+    if (dancing) ctx.rotate(Math.sin(t * 9) * 0.1);
+
+    // --- patas / rodas ---
+    if (wheels) {
+      const rot = (this.x / 10) * f;
+      for (const wx of [-15, 15]) {
+        ctx.fillStyle = '#2d3238';
+        ctx.beginPath();
+        ctx.arc(wx, -9, 9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#9aa3ad';
+        ctx.beginPath();
+        ctx.arc(wx, -9, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#5c646d';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(wx + Math.cos(rot) * 7, -9 + Math.sin(rot) * 7);
+        ctx.lineTo(wx - Math.cos(rot) * 7, -9 - Math.sin(rot) * 7);
+        ctx.stroke();
+      }
+      ctx.fillStyle = dark;
+      roundRect(ctx, -20, -19, 40, 6, 3);
+      ctx.fill();
+    } else {
+      const sw = this.walkPhase;
+      // [x do quadril, fase, longe?] — trote: diagonais juntas
+      const legs: [number, number, boolean][] = [
+        [-13, sw + Math.PI, true],
+        [17, sw, true],
+        [-16, sw, false],
+        [14, sw + Math.PI, false],
+      ];
+      for (const [hx, phase, far] of legs) {
+        const ph = Math.sin(phase);
+        const lift = this.moving ? Math.max(0, ph) * 4 : 0;
+        const fx = hx + (this.moving ? ph * 6 : 0) + (dancing ? Math.sin(t * 12 + hx) * 2 : 0);
+        ctx.strokeStyle = far ? '#48505a' : '#5a636d';
+        ctx.lineWidth = 4.5;
+        ctx.beginPath();
+        ctx.moveTo(hx, bodyY + bodyH - 4 - bob);
+        ctx.lineTo(fx, -4 - lift);
+        ctx.stroke();
+        ctx.fillStyle = far ? '#2c3138' : '#3a4048';
+        roundRect(ctx, fx - 4.5, -6 - lift, 10, 6, 3);
+        ctx.fill();
+      }
+    }
+
+    ctx.translate(0, -bob);
+
+    // --- rabo (abana mais quando feliz) ---
+    const wagSpeed = mood === 'dormindo' ? 0 : happy ? 24 : this.moving ? 13 : 6;
+    const wagAmp = mood === 'dormindo' ? 0 : happy ? 0.7 : 0.4;
+    const wag = Math.sin(t * wagSpeed + this.antennaPhase) * wagAmp;
+    const baseA = mood === 'dormindo' || this.battery <= 0 ? 2.6 : mood === 'tonto' ? 2.2 : -2.2;
+    ctx.strokeStyle = '#5a636d';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    let tx = -21;
+    let ty = bodyY + 5;
+    ctx.moveTo(tx, ty);
+    for (let i = 1; i <= 3; i++) {
+      const a = baseA + wag * (i / 3) - 0.15 * i;
+      tx += Math.cos(a) * 6;
+      ty += Math.sin(a) * 6;
+      ctx.lineTo(tx, ty);
+    }
+    ctx.stroke();
+    ctx.fillStyle = light;
+    ctx.beginPath();
+    ctx.arc(tx, ty, 3.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // --- tronco ---
+    ctx.fillStyle = c.color;
+    roundRect(ctx, -23, bodyY, 46, bodyH, 9);
+    ctx.fill();
+    ctx.fillStyle = light;
+    roundRect(ctx, -18, bodyY + bodyH - 6, 34, 4, 2);
+    ctx.fill();
+    ctx.strokeStyle = dark;
+    ctx.lineWidth = 2;
+    roundRect(ctx, -23, bodyY, 46, bodyH, 9);
+    ctx.stroke();
+    // coleira
+    ctx.fillStyle = '#e8473f';
+    roundRect(ctx, 14, bodyY - 3, 6, bodyH - 2, 3);
+    ctx.fill();
+    ctx.fillStyle = '#ffd34a';
+    ctx.beginPath();
+    ctx.arc(18, bodyY + bodyH - 3, 2.6, 0, Math.PI * 2);
+    ctx.fill();
+    // painel (bateria) na lateral
+    ctx.fillStyle = 'rgba(20,30,40,0.55)';
+    roundRect(ctx, -12, bodyY + 2, 20, 11, 3);
+    ctx.fill();
+    ctx.save();
+    ctx.translate(-12, bodyY + 1);
+    ctx.scale(1, 0.85);
+    this.drawPanel(ctx, 0, 0, t);
+    ctx.restore();
+
+    // --- cabeça ---
+    const tilt = mood === 'tonto' ? Math.sin(t * 6) * 0.15 : happy ? Math.sin(t * 10) * 0.08 : 0;
+    ctx.save();
+    ctx.translate(25, bodyY - 7);
+    ctx.rotate(tilt);
+    this.drawDogHead(ctx, t, mood, light, dark, g.night ?? 0, happy);
+    ctx.restore();
+  }
+
+  private drawDogHead(ctx: CanvasRenderingContext2D, t: number, mood: Mood, light: string, dark: string, night: number, happy: boolean) {
+    const c = this.cfg;
+    const ear = c.head;
+    const flop = Math.sin(this.walkPhase) * (this.moving ? 0.25 : 0) + (happy ? Math.sin(t * 12) * 0.2 : 0);
+    ctx.strokeStyle = dark;
+    ctx.lineWidth = 2;
+    // pescoço
+    ctx.fillStyle = dark;
+    roundRect(ctx, -9, 2, 10, 12, 4);
+    ctx.fill();
+    // orelhas de trás
+    ctx.fillStyle = dark;
+    if (ear === 'quadrada' || ear === 'tv') {
+      const h = ear === 'tv' ? 9 : 13;
+      ctx.beginPath();
+      ctx.moveTo(-10, -9);
+      ctx.lineTo(-7 + flop * 4, -9 - h);
+      ctx.lineTo(-1, -10);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else if (ear === 'domo') {
+      ctx.beginPath();
+      ctx.arc(-8, -11, 5.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // crânio
+    ctx.fillStyle = c.color;
+    if (ear === 'redonda') {
+      ctx.beginPath();
+      ctx.arc(0, -1, 12.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      roundRect(ctx, -12, -12, 24, 22, 7);
+      ctx.fill();
+      ctx.stroke();
+    }
+    // focinho
+    ctx.fillStyle = light;
+    roundRect(ctx, 6, -1, 15, 10, 5);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#1f252c';
+    ctx.beginPath();
+    ctx.ellipse(20, 1, 3.2, 2.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // boca / língua
+    ctx.strokeStyle = '#2a2f36';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(19, 7);
+    ctx.quadraticCurveTo(14, 9.5, 9, 7);
+    ctx.stroke();
+    if ((happy || this.moving) && mood !== 'dormindo') {
+      const lw = Math.sin(t * 16) * 0.8;
+      ctx.fillStyle = '#ff7d9a';
+      ctx.beginPath();
+      ctx.ellipse(13, 10.5 + lw * 0.5, 2.8, 4 + lw, 0.15, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // tela no rosto (orelhas "tela")
+    if (ear === 'tv') {
+      ctx.fillStyle = 'rgba(15,25,35,0.75)';
+      roundRect(ctx, -8, -9, 16, 12, 3);
+      ctx.fill();
+    }
+    // olhos (reaproveita o rosto do robô, sem boca)
+    ctx.save();
+    ctx.translate(1, 0);
+    ctx.scale(0.62, 0.62);
+    const lx = this.look.x;
+    this.look.x = lx * this.facing;
+    this.drawFace(ctx, -4, t, mood, true);
+    this.look.x = lx;
+    ctx.restore();
+    // orelhas da frente
+    ctx.fillStyle = dark;
+    ctx.strokeStyle = dark;
+    if (ear === 'quadrada' || ear === 'tv') {
+      const h = ear === 'tv' ? 10 : 15;
+      ctx.beginPath();
+      ctx.moveTo(-6, -11);
+      ctx.lineTo(-1 + flop * 5, -11 - h);
+      ctx.lineTo(4, -11);
+      ctx.closePath();
+      ctx.fill();
+    } else if (ear === 'redonda') {
+      ctx.save();
+      ctx.translate(-6, -8);
+      ctx.rotate(0.35 + flop);
+      ctx.beginPath();
+      ctx.ellipse(-1, 8, 4.5, 9.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    } else if (ear === 'domo') {
+      ctx.beginPath();
+      ctx.arc(1, -12, 5.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = light;
+      ctx.beginPath();
+      ctx.arc(1, -12, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // antena no alto da cabeça
+    ctx.save();
+    ctx.translate(-4, 0);
+    ctx.scale(0.8, 0.8);
+    this.drawAntenna(ctx, ear === 'redonda' ? -16 : -15, t, night);
+    ctx.restore();
   }
 
   drawOverlay(ctx: CanvasRenderingContext2D, g: Game) {
@@ -755,7 +1055,7 @@ export class Robot extends Entity {
       const w = Math.min(220, ctx.measureText(text).width + 18);
       const h = 26;
       const bx = this.x - w / 2;
-      const by = this.y - this.z - 112 * s - h - (this.carrying ? 34 * s : 0);
+      const by = this.y - this.z - (this.topZ + 8) * s - h - (this.carrying ? 34 * s : 0);
       const a = Math.min(1, this.speech.t * 4);
       ctx.globalAlpha = a;
       ctx.fillStyle = '#fff';

@@ -57,6 +57,7 @@ export class Game {
   paused = false;
   lockManual = false; // missão "só blocos"
   showHeading = false;
+  drainMul = 1; // gasto de bateria (missões zeram)
   missionZone: { x: number; y: number; rx: number; ry: number } | null = null;
   private bus = new Map<string, Handler[]>();
   private acc = 0;
@@ -177,7 +178,10 @@ export class Game {
     const p = x === undefined || y === undefined ? this.spawnPoint() : { x, y };
     const r = this.add(new Robot(p.x, p.y, cfg ?? randomConfig(this.robots.map((r) => r.name))));
     r.z = 120;
-    r.say(pick(['Oi!', 'Olá!', 'Cheguei!', 'Bip bop!']));
+    if (r.isDog) {
+      r.say(pick(['Au au!', 'Woof!', 'Cheguei! Au!']));
+      this.audio.bark();
+    } else r.say(pick(['Oi!', 'Olá!', 'Cheguei!', 'Bip bop!']));
     this.emit('robotAdded', r);
     return r;
   }
@@ -360,8 +364,72 @@ export class Game {
     }
     const e = this.nearestGrabbable(r);
     if (e) return r.pickUp(e, this);
+    if (!fromBlocks) {
+      // sem nada ao alcance: chuta a bola se estiver colada, senão vai buscar o objeto mais perto
+      const ball = this.nearestBall(r, 60);
+      if (ball) return this.aimedKick(r, ball);
+      const far = this.nearestGrabbable(r, 220);
+      if (far) {
+        r.goTo(far.x, far.y + 4, this, (ok) => {
+          if (ok && !far.dead && !far.carriedBy && dist(r.x, r.y, far.x, far.y) < 70) r.pickUp(far, this);
+        });
+        this.emit('command', r);
+        return true;
+      }
+    }
     r.say('Nada por perto...', 1.4);
     return false;
+  }
+
+  /** O que a ação principal faria agora (para destacar na tela e rotular o botão). */
+  focusFor(r: Robot): { e: Entity; act: 'pegar' | 'chutar' } | null {
+    if (r.carrying) return null;
+    const e = this.nearestGrabbable(r);
+    if (e) return { e, act: 'pegar' };
+    const b = this.nearestBall(r, 60);
+    if (b) return { e: b, act: 'chutar' };
+    return null;
+  }
+
+  nearestBall(r: Robot, maxD = 60): Ball | null {
+    let best: Ball | null = null;
+    let bd = maxD;
+    for (const e of this.entities) {
+      if (!(e instanceof Ball) || e.carriedBy || e.dragged) continue;
+      const d = dist(r.x, r.y, e.x, e.y);
+      if (d < bd) {
+        bd = d;
+        best = e;
+      }
+    }
+    return best;
+  }
+
+  /** F / botão Chutar: chuta a bola na direção em que o robô olha, ou arremessa o que carrega. */
+  shoot(r: Robot | null = this.selected) {
+    if (!r) return false;
+    if (this.lockManual) {
+      this.hud?.toast('Nesta missão, só vale programar com blocos! 🧩');
+      return false;
+    }
+    r.wake();
+    if (r.carrying) {
+      r.throwAhead(this);
+      return true;
+    }
+    const ball = this.nearestBall(r, 75);
+    if (ball) return this.aimedKick(r, ball);
+    r.say('Cadê a bola?', 1.2);
+    return false;
+  }
+
+  private aimedKick(r: Robot, ball: Ball) {
+    // se estiver parado, mira na bola; andando, mantém a direção do movimento
+    if (!r.moving) r.heading = Math.atan2(ball.y - r.y, ball.x - r.x);
+    r.facing = Math.cos(r.heading) >= 0 ? 1 : -1;
+    r.kickT = 0.3;
+    this.kick(r, ball, 1.35, 0.85);
+    return true;
   }
 
   /** Regar a planta mais próxima. */
@@ -396,22 +464,14 @@ export class Game {
 
   /** Chuta a bola mais próxima (usado pelos blocos). */
   kickNearest(r: Robot): boolean {
-    let best: Ball | null = null;
-    let bd = 60;
-    for (const e of this.entities) {
-      if (!(e instanceof Ball) || e.carriedBy) continue;
-      const d = dist(r.x, r.y, e.x, e.y);
-      if (d < bd) {
-        bd = d;
-        best = e;
-      }
-    }
+    const best = this.nearestBall(r, 60);
     if (!best) {
       r.say('Cadê a bola?', 1.4);
       return false;
     }
     r.heading = Math.atan2(best.y - r.y, best.x - r.x);
     r.facing = best.x >= r.x ? 1 : -1;
+    r.kickT = 0.3;
     this.kick(r, best, 1.2);
     return true;
   }
@@ -478,10 +538,11 @@ export class Game {
     if (!ea || !eb) return;
     const robot = ea instanceof Robot ? ea : eb instanceof Robot ? eb : null;
     const ball = ea instanceof Ball ? ea : eb instanceof Ball ? eb : null;
-    if (robot && ball && !ball.airborne && (robot.moving || robot.dance > 0) && !robot.dragged) this.kick(robot, ball);
+    if (robot && ball && !ball.airborne && (robot.moving || robot.dance > 0) && !robot.dragged) this.kick(robot, ball, 0.75, 0.7, true);
   }
 
-  kick(robot: Robot, ball: Ball, power = 1) {
+  /** aim: 0 = direção do contato, 1 = direção em que o robô olha. */
+  kick(robot: Robot, ball: Ball, power = 1, aim = 0.5, dribble = false) {
     if (!ball.body) return;
     let dx = ball.x - robot.x;
     let dy = ball.y - robot.y;
@@ -490,13 +551,18 @@ export class Game {
     dy /= d;
     const hx = Math.cos(robot.heading);
     const hy = Math.sin(robot.heading);
-    const nx = dx * 0.5 + hx * 0.5;
-    const ny = dy * 0.5 + hy * 0.5;
-    const sp = (480 + rand(0, 200)) * power;
+    let nx = dx * (1 - aim) + hx * aim;
+    let ny = dy * (1 - aim) + hy * aim;
+    const nm = Math.hypot(nx, ny) || 1;
+    nx /= nm;
+    ny /= nm;
+    const sp = (dribble ? 300 + rand(0, 80) : 520 + rand(0, 90)) * power;
     Matter.Body.setVelocity(ball.body, { x: (nx * sp) / 60, y: (ny * sp * 0.7) / 60 });
-    ball.vz = rand(140, 300) * power;
+    ball.vz = dribble ? rand(40, 110) : rand(170, 260) * power;
     this.audio.kick();
-    if (Math.random() < 0.35) robot.say(pick(['Chutei!', 'Gol?', 'Toma!', 'Lá vai!']), 1.3);
+    if (!dribble || Math.random() < 0.2) {
+      if (Math.random() < 0.35) robot.say(pick(['Chutei!', 'Gol?', 'Toma!', 'Lá vai!']), 1.3);
+    }
     this.emit('kick', { robot, ball });
   }
 
@@ -583,7 +649,7 @@ export class Game {
     this.particles.update(dt);
     this.emit('tick', dt);
     this.purge();
-    this.camera.follow(this.selected ? this.selected.x : null, dt);
+    this.camera.follow(this.selected ? this.selected.x : null, dt, this.selected?.moving ? this.selected.facing : 0);
   }
 
   private wander(r: Robot, dt: number) {
@@ -697,6 +763,43 @@ export class Game {
     ctx.setTransform(s, 0, 0, s, -cam * s, this.offY * s);
     for (const p of this.props) if (p.drawOverlay && p.maxX >= minX && p.minX <= maxX) p.drawOverlay(ctx, this);
     for (const e of this.entities) if (e.x > minX && e.x < maxX) e.drawOverlay(ctx, this);
+    if (sel && !sel.dragged && !this.lockManual) this.drawFocus(ctx, sel);
     this.emit('render', ctx);
+  }
+
+  /** Setinha pulsando sobre o objeto que Espaço vai pegar/chutar. */
+  private drawFocus(ctx: CanvasRenderingContext2D, r: Robot) {
+    const f = this.focusFor(r);
+    if (!f) return;
+    const e = f.e;
+    const s = e.scale;
+    const bob = Math.sin(this.time * 6) * 3;
+    const x = e.x;
+    const y = e.y - e.z - (e.height + 14) * s - bob;
+    ctx.save();
+    ctx.fillStyle = f.act === 'chutar' ? '#ffd23c' : '#ffffff';
+    ctx.strokeStyle = 'rgba(20,30,40,0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x - 8, y - 10);
+    ctx.lineTo(x + 8, y - 10);
+    ctx.lineTo(x, y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    if (!document.body.classList.contains('is-touch')) {
+      const label = f.act === 'chutar' ? 'Espaço/F: chutar' : 'Espaço: pegar';
+      ctx.font = '600 11px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const w = ctx.measureText(label).width + 12;
+      ctx.fillStyle = 'rgba(20,30,40,0.7)';
+      ctx.beginPath();
+      ctx.roundRect(x - w / 2, y - 32, w, 16, 8);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.fillText(label, x, y - 23.5);
+    }
+    ctx.restore();
   }
 }

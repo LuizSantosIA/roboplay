@@ -7,6 +7,7 @@ Um playground de robôs no navegador: arraste, controle, programe e complete mis
 ## O que tem
 
 - **Robôs** desenhados em canvas: antena piscando, olhos que seguem o cursor e piscam, pernas ou rodas, braços, sombra, nome e balões de fala.
+- **Cachorros robôs** (Faro e Biscoito): quatro patas ou rodas, rabo que abana mais quando estão felizes, língua de fora, coleira e latidos. Fazem tudo o que os robôs fazem: blocos, missões, carregar coisas (nas costas), bateria.
 - **Controles:** clique para selecionar, clique no gramado para andar (com linha tracejada até o destino), setas/WASD, Espaço pega e solta, R rega, Tab troca de robô. Dá para arrastar e arremessar robôs, caixas e bolas.
 - **Física** com Matter.js no plano do chão e altura simulada à parte: pilhas de caixas, quiques, chutes, rampas.
 - **Mundo:** céu com sol, nuvens, montanhas com neve, colinas e árvores com paralaxe; ciclo de dia e noite (estrelas, lua, antenas brilhando); chuva com poças escorregadias, neve que acumula e derrete; lago que os robôs contornam (madeira boia, metal afunda e é "cuspido" de volta); pássaros que fogem; macieiras que derrubam maçãs.

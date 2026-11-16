@@ -8,14 +8,17 @@ export class Camera {
   free = false;
   rightInset = 0; // área coberta por painel lateral (unidades lógicas)
   private freeT = 0;
+  private lead = 0;
 
-  follow(targetX: number | null, dt: number) {
+  /** dir: -1/0/1, direção em que o alvo anda (a câmera mostra mais à frente). */
+  follow(targetX: number | null, dt: number, dir = 0) {
+    this.lead += (dir * this.viewW * 0.14 - this.lead) * Math.min(1, dt * 1.2);
     if (this.free) {
       this.freeT -= dt;
       if (this.freeT <= 0 && targetX !== null) this.free = false;
     }
     if (!this.free && targetX !== null) {
-      const want = targetX - (this.viewW - this.rightInset) / 2;
+      const want = targetX + this.lead - (this.viewW - this.rightInset) / 2;
       this.x += (want - this.x) * Math.min(1, dt * 3.2);
     }
     this.clamp();
