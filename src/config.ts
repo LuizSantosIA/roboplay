@@ -1,6 +1,6 @@
 // Coordenadas lógicas: altura fixa de 720 unidades; largura depende da tela.
 export const VIEW_H = 720;
-export const MIN_VIEW_W = 640;
+export const MIN_VIEW_W = 400;
 export const WORLD_W = 3600;
 export const HORIZON = 430; // linha onde começa o gramado
 export const GROUND_TOP = 452; // limite de profundidade (fundo) em que se pode andar

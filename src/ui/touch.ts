@@ -37,7 +37,11 @@ export class TouchControls {
       e.preventDefault();
       g.audio.unlock();
       id = e.pointerId;
-      joy.setPointerCapture(e.pointerId);
+      try {
+        joy.setPointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
       g.input.joy.active = true;
       handle(e);
     });

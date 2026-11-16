@@ -6,12 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview",
-    "server": "node server/index.js"
+    "preview": "vite preview"
   },
   "dependencies": {
-    "matter-js": "^0.20.0",
-    "ws": "^8.23.0"
+    "matter-js": "^0.20.0"
   },
   "devDependencies": {
     "@types/matter-js": "^0.20.2",
