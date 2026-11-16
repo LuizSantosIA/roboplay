@@ -266,7 +266,7 @@ export class Runner {
           break;
         }
         case 'pegar':
-          if (!r.carrying) g.action(r);
+          if (!r.carrying) g.action(r, true);
           yield { block: b, done: this.timer(0.45) };
           break;
         case 'soltar':
@@ -278,7 +278,7 @@ export class Runner {
           yield { block: b, done: this.timer(0.5) };
           break;
         case 'regar':
-          g.water(r);
+          g.water(r, true);
           yield { block: b, done: this.timer(1.1) };
           break;
         case 'dancar':

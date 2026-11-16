@@ -5,6 +5,7 @@ import { TouchControls } from './ui/touch';
 import { setupWorldControls } from './ui/worldControls';
 import { setupEditor } from './ui/editor';
 import { BlocksPanel } from './ui/blocksPanel';
+import { MissionsUi } from './ui/missions';
 import { loadRoster } from './systems/storage';
 import { GROUND_BOTTOM, GROUND_TOP } from './config';
 
@@ -14,6 +15,7 @@ const hud = new Hud(game);
 setupWorldControls(game, hud);
 setupEditor(game, hud);
 const blocks = new BlocksPanel(game, hud);
+const missions = new MissionsUi(game, hud, blocks);
 new TouchControls(game);
 
 function populate() {
@@ -42,11 +44,20 @@ populate();
 game.start();
 
 const intro = document.getElementById('intro')!;
-document.getElementById('btn-play')!.addEventListener('click', () => {
+const closeIntro = () => {
   game.audio.unlock();
   intro.classList.add('hide');
   setTimeout(() => intro.remove(), 400);
+};
+document.getElementById('btn-play')!.addEventListener('click', () => {
+  closeIntro();
   game.select(game.selected);
+});
+const btnMissions = document.getElementById('btn-missions')!;
+btnMissions.hidden = false;
+btnMissions.addEventListener('click', () => {
+  closeIntro();
+  missions.openList();
 });
 
 // depuração

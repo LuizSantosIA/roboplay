@@ -139,7 +139,7 @@ export class Game {
     e.dead = true;
   }
 
-  private purge() {
+  purge() {
     if (!this.entities.some((e) => e.dead)) return;
     for (const e of this.entities) {
       if (!e.dead) continue;
@@ -225,7 +225,10 @@ export class Game {
   canDrag(e: Entity) {
     if (!e.grabbable || e.carriedBy) return false;
     if (e instanceof Robot && e.remote) return false;
-    if (this.lockManual) return false;
+    if (this.lockManual) {
+      this.hud?.toast('Nesta missão, só vale programar com blocos! 🧩');
+      return false;
+    }
     return true;
   }
 
@@ -306,7 +309,11 @@ export class Game {
       }
     }
     const r = this.selected;
-    if (!r || this.lockManual) return;
+    if (this.lockManual) {
+      this.hud?.toast('Nesta missão, só vale programar com blocos! 🧩');
+      return;
+    }
+    if (!r) return;
     r.wake();
     if (hit && hit.grabbable && !hit.carriedBy) {
       // ir até o objeto e pegá-lo (caixa/maçã) ou chutar (bola)
@@ -340,8 +347,12 @@ export class Game {
   }
 
   /** Espaço / botão Pegar. */
-  action(r: Robot | null = this.selected) {
+  action(r: Robot | null = this.selected, fromBlocks = false) {
     if (!r) return false;
+    if (this.lockManual && !fromBlocks) {
+      this.hud?.toast('Nesta missão, só vale programar com blocos! 🧩');
+      return false;
+    }
     this.wake(r);
     if (r.carrying) {
       r.drop(this);
@@ -354,8 +365,9 @@ export class Game {
   }
 
   /** Regar a planta mais próxima. */
-  water(r: Robot | null = this.selected): boolean {
+  water(r: Robot | null = this.selected, fromBlocks = false): boolean {
     if (!r) return false;
+    if (this.lockManual && !fromBlocks) return false;
     r.wake();
     if (r.carrying) {
       r.say('Mãos ocupadas!', 1.4);
