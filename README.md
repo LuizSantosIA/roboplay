@@ -2,7 +2,7 @@
 
 Um playground de robôs no navegador: arraste, controle, programe e complete missões numa paisagem 2D. Interface toda em português do Brasil, funciona com mouse, teclado e toque.
 
-**No ar:** https://roboplay.vercel.app (veja a URL final no fim deste arquivo)
+**No ar:** https://roboplay-nine.vercel.app
 
 ## O que tem
 
