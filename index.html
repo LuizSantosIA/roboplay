@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#7cc4f2" />
+    <meta name="description" content="RoboPlay: um playground de robôs no navegador. Arraste, controle, programe e complete missões." />
+    <title>RoboPlay</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <canvas id="game" aria-label="Playground de robôs"></canvas>
+    <div id="hud"></div>
+    <div id="intro" class="intro">
+      <div class="intro-card">
+        <div class="intro-logo">Robo<span>Play</span></div>
+        <p class="intro-sub">Um playground de robôs no seu navegador.</p>
+        <ul class="intro-list">
+          <li><b>Clique</b> num robô para escolher e no gramado para ele andar.</li>
+          <li><b>Arraste</b> robôs, caixas e bolas. Solte em movimento para arremessar.</li>
+          <li><b>Setas/WASD</b> movem, <b>Espaço</b> pega e solta.</li>
+        </ul>
+        <div class="intro-actions">
+          <button id="btn-play" class="btn-primary">Jogar</button>
+          <button id="btn-missions" class="btn-ghost" hidden>Missões</button>
+        </div>
+        <p class="intro-room" id="intro-room" hidden></p>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
