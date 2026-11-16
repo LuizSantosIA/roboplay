@@ -23,6 +23,15 @@ const HELP_HTML = `
   <div><b>Chacoalhar</b></div><div>Deixa o robô tonto 😵</div>
   <div><b>Celular</b></div><div>Joystick à esquerda e botão Pegar à direita</div>
 </div>
+<h3>No cenário</h3>
+<div class="help-grid">
+  <div><b>Macieira</b></div><div>Clique para derrubar uma maçã</div>
+  <div><b>Botões vermelhos</b></div><div>Pise (ou clique) para abrir a porta da fábrica</div>
+  <div><b>Mini-fábrica</b></div><div>Clique para ligar/desligar. Leve cada caixa colorida à área da mesma cor</div>
+  <div><b>Gol, cesta e alvos</b></div><div>Chute a bola no gol, arremesse caixas na cesta e nos alvos</div>
+  <div><b>Rampas</b></div><div>Passe correndo para dar um salto</div>
+  <div><b>Plantas</b></div><div>Regue com R (ou 💧) e veja crescer. A chuva também rega</div>
+</div>
 <p class="help-tip">Dica: clique numa macieira para derrubar uma maçã, empilhe caixas soltando uma sobre a outra e leve o robô até a estação de recarga quando a bateria acabar.</p>
 `;
 

@@ -13,6 +13,7 @@ import { Box, BoxColor } from './entities/box';
 import { Ball } from './entities/ball';
 import type { Hud } from './ui/hud';
 import { saveRoster } from './systems/storage';
+import { buildScenery, Scenery } from './world/props';
 
 /** Elementos fixos do cenário que participam da ordenação por profundidade. */
 export interface Prop {
@@ -42,6 +43,7 @@ export class Game {
   camera = new Camera();
   particles = new Particles();
   world: World;
+  scenery: Scenery;
   input: Input;
   hud: Hud | null = null;
   entities: Entity[] = [];
@@ -66,6 +68,7 @@ export class Game {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d', { alpha: false })!;
     this.world = new World(this);
+    this.scenery = buildScenery(this);
     this.input = new Input(this);
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -348,9 +351,55 @@ export class Game {
     return false;
   }
 
-  /** Regar (Fase 4). */
-  water(_r: Robot | null = this.selected): boolean {
-    return false;
+  /** Regar a planta mais próxima. */
+  water(r: Robot | null = this.selected): boolean {
+    if (!r) return false;
+    r.wake();
+    if (r.carrying) {
+      r.say('Mãos ocupadas!', 1.4);
+      return false;
+    }
+    let best = null;
+    let bd = 80;
+    for (const p of this.scenery.plants) {
+      const d = dist(r.x, r.y, p.x, p.y);
+      if (d < bd) {
+        bd = d;
+        best = p;
+      }
+    }
+    if (!best) {
+      r.say('Nenhuma planta perto...', 1.4);
+      return false;
+    }
+    r.facing = best.x >= r.x ? 1 : -1;
+    r.wateringT = 1.1;
+    best.waterIt(this);
+    this.audio.splash();
+    r.say(best.grown ? 'Linda flor!' : 'Regando! 💧', 1.4);
+    return true;
+  }
+
+  /** Chuta a bola mais próxima (usado pelos blocos). */
+  kickNearest(r: Robot): boolean {
+    let best: Ball | null = null;
+    let bd = 60;
+    for (const e of this.entities) {
+      if (!(e instanceof Ball) || e.carriedBy) continue;
+      const d = dist(r.x, r.y, e.x, e.y);
+      if (d < bd) {
+        bd = d;
+        best = e;
+      }
+    }
+    if (!best) {
+      r.say('Cadê a bola?', 1.4);
+      return false;
+    }
+    r.heading = Math.atan2(best.y - r.y, best.x - r.x);
+    r.facing = best.x >= r.x ? 1 : -1;
+    this.kick(r, best, 1.2);
+    return true;
   }
 
   wake(r: Robot) {

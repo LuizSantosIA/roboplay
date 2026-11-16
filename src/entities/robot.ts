@@ -71,6 +71,7 @@ export class Robot extends Entity {
   moodT = 0;
   idleT = 0;
   battery = 100;
+  wateringT = 0;
   charging = false;
   private lowWarnT = 0;
   private zzzT = 0;
@@ -293,6 +294,7 @@ export class Robot extends Entity {
       if (this.speech.t <= 0) this.speech = null;
     }
     if (this.dance > 0) this.dance -= dt;
+    if (this.wateringT > 0) this.wateringT -= dt;
     // bateria
     if (!this.remote) {
       let drain = 0.012;
@@ -442,6 +444,7 @@ export class Robot extends Entity {
     // --- braços ---
     const armAngle = (side: number): number => {
       if (this.carrying) return Math.PI - 0.32;
+      if (this.wateringT > 0 && side === f) return Math.PI / 2 - 0.15;
       if (dancing) return Math.PI / 2 + Math.sin(t * 9 + (side > 0 ? 0 : Math.PI)) * 1.1;
       if (mood === 'feliz') return Math.PI - 0.5 + Math.sin(t * 14) * 0.25;
       if (this.flying) return Math.PI / 2 + 0.6;
@@ -469,6 +472,32 @@ export class Robot extends Entity {
     };
     drawArm(-1);
     drawArm(1);
+    if (this.wateringT > 0) {
+      // regador
+      const hx = f * 19 + f * 22;
+      const hy = bodyTop + 7 + 3;
+      ctx.save();
+      ctx.translate(hx, hy);
+      ctx.scale(f, 1);
+      ctx.rotate(0.35);
+      ctx.fillStyle = '#3a9be0';
+      roundRect(ctx, -6, -6, 14, 12, 3);
+      ctx.fill();
+      ctx.strokeStyle = '#3a9be0';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(7, 0);
+      ctx.lineTo(16, -6);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(140,200,255,0.9)';
+      for (let i = 0; i < 3; i++) {
+        const k = ((t * 3 + i / 3) % 1);
+        ctx.beginPath();
+        ctx.arc(17 + k * 4, -5 + k * 22, 1.6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
 
     // --- corpo ---
     ctx.fillStyle = c.color;
