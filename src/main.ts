@@ -4,6 +4,7 @@ import { Hud } from './ui/hud';
 import { TouchControls } from './ui/touch';
 import { setupWorldControls } from './ui/worldControls';
 import { setupEditor } from './ui/editor';
+import { BlocksPanel } from './ui/blocksPanel';
 import { loadRoster } from './systems/storage';
 import { GROUND_BOTTOM, GROUND_TOP } from './config';
 
@@ -12,6 +13,7 @@ const game = new Game(canvas);
 const hud = new Hud(game);
 setupWorldControls(game, hud);
 setupEditor(game, hud);
+const blocks = new BlocksPanel(game, hud);
 new TouchControls(game);
 
 function populate() {
@@ -48,4 +50,5 @@ document.getElementById('btn-play')!.addEventListener('click', () => {
 });
 
 // depuração
-(window as unknown as { roboplay: Game }).roboplay = game;
+(window as unknown as { roboplay: Game; blocks: BlocksPanel }).roboplay = game;
+(window as unknown as { blocks: BlocksPanel }).blocks = blocks;

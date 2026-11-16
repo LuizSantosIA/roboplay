@@ -56,6 +56,8 @@ export class Game {
   autonomous = false;
   paused = false;
   lockManual = false; // missão "só blocos"
+  showHeading = false;
+  missionZone: { x: number; y: number; rx: number; ry: number } | null = null;
   private bus = new Map<string, Handler[]>();
   private acc = 0;
   private lastT = 0;
@@ -638,6 +640,30 @@ export class Game {
       ctx.beginPath();
       ctx.ellipse(t.x, t.y, 9, 4, 0, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.restore();
+    }
+    // direção do robô (painel de blocos aberto)
+    if (sel && this.showHeading) {
+      const hx = Math.cos(sel.heading);
+      const hy = Math.sin(sel.heading) * 0.75;
+      const ax = sel.x + hx * 46;
+      const ay = sel.y + hy * 46;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,214,60,0.95)';
+      ctx.fillStyle = 'rgba(255,214,60,0.95)';
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(sel.x + hx * 20, sel.y + hy * 20);
+      ctx.lineTo(ax, ay);
+      ctx.stroke();
+      const a = Math.atan2(hy, hx);
+      ctx.beginPath();
+      ctx.moveTo(ax + Math.cos(a) * 10, ay + Math.sin(a) * 10);
+      ctx.lineTo(ax + Math.cos(a + 2.4) * 10, ay + Math.sin(a + 2.4) * 10);
+      ctx.lineTo(ax + Math.cos(a - 2.4) * 10, ay + Math.sin(a - 2.4) * 10);
+      ctx.closePath();
+      ctx.fill();
       ctx.restore();
     }
     // ordenação por profundidade

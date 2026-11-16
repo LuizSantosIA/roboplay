@@ -6,6 +6,7 @@ export class Camera {
   x = 0;
   viewW = 1280;
   free = false;
+  rightInset = 0; // área coberta por painel lateral (unidades lógicas)
   private freeT = 0;
 
   follow(targetX: number | null, dt: number) {
@@ -14,7 +15,7 @@ export class Camera {
       if (this.freeT <= 0 && targetX !== null) this.free = false;
     }
     if (!this.free && targetX !== null) {
-      const want = targetX - this.viewW / 2;
+      const want = targetX - (this.viewW - this.rightInset) / 2;
       this.x += (want - this.x) * Math.min(1, dt * 3.2);
     }
     this.clamp();
